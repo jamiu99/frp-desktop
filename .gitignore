@@ -1,0 +1,34 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# frpc sidecar 二进制（每次开发/CI 现下载，用 src-tauri/binaries/fetch.sh）
+src-tauri/binaries/frpc-*
+src-tauri/binaries/frpc-*.exe
+# 但保留管理脚本和版本元信息
+!src-tauri/binaries/fetch.sh
+!src-tauri/binaries/VERSION
+
+# tmux dev 启动脚本中转的 env 文件
+.start-env.sh

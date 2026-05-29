@@ -1,0 +1,6 @@
+frp_version = 0.69.0
+upstream    = https://github.com/fatedier/frp/releases/tag/v0.69.0
+checksums   = https://github.com/fatedier/frp/releases/download/v0.69.0/frp_sha256_checksums.txt
+fetched_at  = 2026-05-29
+
+# 升级 frpc：用同目录下的 fetch.sh 重跑
