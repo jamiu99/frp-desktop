@@ -1,0 +1,7 @@
+# pnpm 11+ 用此文件管理 build-script 批准/拒绝（即使非 monorepo）。
+# 我们对这些包不需要 install 时的 build script：
+#   esbuild  — 用 pnpm 拉的预编译二进制即可，不需要本地编译
+#   vue-demi — 我们用 Vue 3，不需要它的 vue 版本切换 postinstall
+allowBuilds:
+  esbuild: false
+  vue-demi: false
