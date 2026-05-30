@@ -75,9 +75,14 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # updater 签名：私钥 + 密码（GitHub Secret）
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "frp_desktop ${{ github.ref_name }}"
           releaseDraft: true
           prerelease: false
+          # 生成并上传 latest.json（自动更新清单）
+          includeUpdaterJson: true
           args: --target ${{ matrix.target }}

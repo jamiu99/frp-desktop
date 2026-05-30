@@ -10,17 +10,44 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getVersion } from "@tauri-apps/api/app";
 import { useDataStore } from "@/stores/data";
 import { runtimeApi } from "@/api/runtime";
 import { toast } from "@/components/ui/toast";
-import { CheckCircle2, XCircle } from "@lucide/vue";
+import { CheckCircle2, XCircle, RefreshCw } from "@lucide/vue";
 import {
   enable as enableAutostart,
   disable as disableAutostart,
   isEnabled as isAutostartEnabled,
 } from "@tauri-apps/plugin-autostart";
+import { useUpdater } from "@/composables/useUpdater";
+import UpdateDialog from "@/components/UpdateDialog.vue";
 
 const data = useDataStore();
+
+// 当前版本号
+const appVersion = ref("");
+getVersion().then((v) => (appVersion.value = v)).catch(() => {});
+
+// 检查更新
+const { checkForUpdate } = useUpdater();
+const checkingUpdate = ref(false);
+const updateDialogOpen = ref(false);
+async function checkUpdate() {
+  checkingUpdate.value = true;
+  try {
+    const update = await checkForUpdate();
+    if (update) {
+      updateDialogOpen.value = true;
+    } else {
+      toast.success("已是最新版本");
+    }
+  } catch (e) {
+    toast.fromError(e);
+  } finally {
+    checkingUpdate.value = false;
+  }
+}
 
 const frpcPath = ref<string>("");
 const closeToTray = ref(false);
@@ -138,5 +165,23 @@ async function checkFrpc() {
         <Button @click="save">保存</Button>
       </CardContent>
     </Card>
+
+    <Card>
+      <CardHeader>
+        <CardTitle>关于 / 更新</CardTitle>
+        <CardDescription>当前版本 v{{ appVersion || "…" }}</CardDescription>
+      </CardHeader>
+      <CardContent class="space-y-3">
+        <Button variant="outline" :disabled="checkingUpdate" @click="checkUpdate">
+          <RefreshCw :class="['h-4 w-4', checkingUpdate && 'animate-spin']" />
+          {{ checkingUpdate ? "检查中…" : "检查更新" }}
+        </Button>
+        <p class="text-xs text-muted-foreground">
+          从 GitHub Releases 检查并下载新版本（自动验签后安装）
+        </p>
+      </CardContent>
+    </Card>
+
+    <UpdateDialog v-model:open="updateDialogOpen" />
   </div>
 </template>

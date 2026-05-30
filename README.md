@@ -85,6 +85,15 @@ sudo apt install -y \
 4. **启动 Proxy**：点「启动」，frpc 子进程运行，可点「日志」查看实时输出
 5. **查看 dashboard**：在「frps 服务端」页点对应服务端的「查看 dashboard」
 
+## 自动更新
+
+应用内置自动更新（Tauri updater）：
+
+- 启动时静默检查 GitHub Releases，有新版弹窗提示
+- 「设置 → 关于 / 更新」可手动检查
+- 下载的安装包用 minisign 公钥验签后才安装，安全可靠
+- 支持 Windows（.msi/.exe）、macOS（.app）、Linux（AppImage）；`.deb` / `.rpm` 走系统包管理器，不走应用内更新
+
 ## 进程模型
 
 - 每个 frps 服务端 = 一个 frpc 子进程

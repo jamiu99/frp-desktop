@@ -89,6 +89,15 @@ frp_desktop 是一个跨平台（Windows / macOS / Linux）的桌面应用，定
 | 2026-05-29 | 锁定 frpc v0.69.0 + sidecar 全平台二进制 | 6 个 target triple（linux x64/arm64、macOS Intel/AS、windows x64/arm64）放 `src-tauri/binaries/`，配 `bundle.externalBin`，dev 模式 cargo 自动拷到 target/debug/。配套 `binaries/fetch.sh` 一键升级（含 sha256 校验）。frpc.rs 查找路径优先用 sidecar，零配置可用 |
 | 2026-05-30 | v0.1.1 重构：去掉 Project，进程按 server 聚合 | 用户反馈 Project 多余 + 描述限制反人类。删 Project 模型、去掉黑名单和 ≥10 字校验；name 用户自填，仅校验格式 + 同 server 唯一。frpc 进程模型从"每 proxy 一个进程"改为"每 server 一个进程"（共享 toml，热重启）。Windows 默认隐藏 frpc 控制台（CREATE_NO_WINDOW），加 settings.show_frpc_console 开关。进程崩溃/手动关掉黑窗后 UI 自动切到「已崩溃」。状态文本全部中文化 |
 | 2026-05-30 | v0.1.2 UI 改版 + 几处修复 | 配色改米色暖调 + 墨色主色（去蓝），收紧圆角（--radius 0.375rem，Badge 改 3px 小圆角 + 浅底深字）。修 HTTP scope（http://** 匹配不到带端口/路径的 dashboard URL，改成 http(s)://* 等四种组合）。弹窗加 max-h-90vh + 整体滚动，解决小窗口下标题被裁。「在浏览器打开 dashboard」从 `<a target=_blank>`（Tauri webview 不认）改为 plugin-opener 的 openUrl + opener:allow-open-url scope |
+| 2026-05-30 | v0.1.3 应用内自动更新 | tauri-plugin-updater + process。minisign 密钥对（私钥存 GitHub Secret，公钥进 tauri.conf.json）。CI 注入签名 env + includeUpdaterJson 产出 latest.json。前端 useUpdater composable + UpdateDialog；启动静默检查有新版弹窗，设置页「检查更新」手动触发；下载验签后安装 + 重启。endpoint = releases/latest/download/latest.json（注意：release 必须 publish 后才能被 latest 检测到，draft 不行）。**升级 frpc 须保留同一签名私钥，否则旧版无法验证新包** |
+
+## 自动更新维护须知（重要）
+
+- 签名私钥已存为 GitHub Secret：`TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+- 公钥在 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`
+- **私钥丢失/泄露后果**：丢失 → 无法再发布能被已安装版本识别的更新（所有用户得手动重装）；泄露 → 他人可伪造更新。务必妥善保管
+- 每次发版只要照常 push tag，CI 会自动签名并生成 latest.json
+- release 必须 **publish**（非 draft）才会被 `releases/latest` 命中
 
 ## 5. 进行中
 
