@@ -25,6 +25,7 @@ import ServerFormDialog from "@/components/forms/ServerFormDialog.vue";
 import ProxyFormDialog from "@/components/forms/ProxyFormDialog.vue";
 import ProxyLogsDialog from "@/components/forms/ProxyLogsDialog.vue";
 import { ConfirmDialog } from "@/components/ui/confirm";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useDataStore } from "@/stores/data";
 import { useRuntimeStore } from "@/stores/runtime";
 import { toast } from "@/components/ui/toast";
@@ -120,6 +121,13 @@ function gotoDashboard(s: FrpsServer) {
 function openLogs(s: FrpsServer) {
   logsServer.value = s;
   logsOpen.value = true;
+}
+async function openInBrowser(url: string) {
+  try {
+    await openUrl(url);
+  } catch (e) {
+    toast.fromError(e);
+  }
 }
 
 function statusBadge(serverId: string) {
@@ -318,9 +326,7 @@ function proxyTypeStyle(_t: string) {
               v-if="s.dashboard_url"
               size="sm"
               variant="ghost"
-              as="a"
-              :href="s.dashboard_url"
-              target="_blank"
+              @click="openInBrowser(s.dashboard_url!)"
             >
               <ExternalLink class="h-4 w-4" />
               在浏览器打开 dashboard

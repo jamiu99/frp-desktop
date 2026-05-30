@@ -1,7 +1,7 @@
 {
   "name": "frp-desktop",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "frpc 图形化客户端 + frps dashboard 查看，跨平台桌面应用",
   "license": "MIT",
   "author": "jamiu99",

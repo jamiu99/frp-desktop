@@ -88,6 +88,7 @@ frp_desktop 是一个跨平台（Windows / macOS / Linux）的桌面应用，定
 | 2026-05-27 | GitHub Actions 三平台 release 工作流 | tag push 触发；matrix 构建 Win x64 / macOS Intel + Apple Silicon / Linux x64；草稿 release |
 | 2026-05-29 | 锁定 frpc v0.69.0 + sidecar 全平台二进制 | 6 个 target triple（linux x64/arm64、macOS Intel/AS、windows x64/arm64）放 `src-tauri/binaries/`，配 `bundle.externalBin`，dev 模式 cargo 自动拷到 target/debug/。配套 `binaries/fetch.sh` 一键升级（含 sha256 校验）。frpc.rs 查找路径优先用 sidecar，零配置可用 |
 | 2026-05-30 | v0.1.1 重构：去掉 Project，进程按 server 聚合 | 用户反馈 Project 多余 + 描述限制反人类。删 Project 模型、去掉黑名单和 ≥10 字校验；name 用户自填，仅校验格式 + 同 server 唯一。frpc 进程模型从"每 proxy 一个进程"改为"每 server 一个进程"（共享 toml，热重启）。Windows 默认隐藏 frpc 控制台（CREATE_NO_WINDOW），加 settings.show_frpc_console 开关。进程崩溃/手动关掉黑窗后 UI 自动切到「已崩溃」。状态文本全部中文化 |
+| 2026-05-30 | v0.1.2 UI 改版 + 几处修复 | 配色改米色暖调 + 墨色主色（去蓝），收紧圆角（--radius 0.375rem，Badge 改 3px 小圆角 + 浅底深字）。修 HTTP scope（http://** 匹配不到带端口/路径的 dashboard URL，改成 http(s)://* 等四种组合）。弹窗加 max-h-90vh + 整体滚动，解决小窗口下标题被裁。「在浏览器打开 dashboard」从 `<a target=_blank>`（Tauri webview 不认）改为 plugin-opener 的 openUrl + opener:allow-open-url scope |
 
 ## 5. 进行中
 
