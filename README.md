@@ -12,17 +12,18 @@
 直接用 frp 官方 CLI，常见问题：
 
 1. 多个 proxy 写在一个 `frpc.toml` 里，**启停粒度粗**——要么全开要么全关
-2. 用户随手起 `test1`、`a`、`temp` 这种 **没意义的 name**，几个月后无法维护
-3. **多 frps 服务端切换** 麻烦，每次要改配置
-4. **frps dashboard 在浏览器里看**，每次输 URL 输密码
+2. **多 frps 服务端切换** 麻烦，每次要改配置
+3. **frps dashboard 在浏览器里看**，每次输 URL 输密码
+4. Windows 下 `frpc.exe` 直接弹一个黑色控制台窗口，关掉=中断
 
 frp-desktop 解决：
 
-- ✅ 多 proxy 独立启停，每个 proxy 一个独立的 frpc 子进程，互不影响
-- ✅ **强约束 name 管理**：必须挂在「项目」下，name = `{项目}-{用途}` 自动拼接，黑名单常见占位词，重名检查，必填描述
-- ✅ 多 frps 服务端配置，一处管理
+- ✅ 单个 proxy 维度的启停，UI 操作即可
+- ✅ **同一 frps 下的多个 proxy 共用一个 frpc 进程**（不浪费），不同 frps 各自独立
+- ✅ 多 frps 服务端配置，一处管理；每个服务端下直接列它的 proxy
 - ✅ 应用内查看 frps dashboard（serverinfo + proxy 列表 + 流量统计）
 - ✅ 系统托盘常驻、关窗口不退出、开机自启
+- ✅ Windows 下 frpc 默认隐藏控制台窗口，可在设置里打开（调试用）
 - ✅ 顺带提供本机端口查看器（进程 / PID / 协议 / 地址 / 端口 / 状态，可排序过滤）
 
 ## 截图
@@ -84,23 +85,19 @@ sudo apt install -y \
 4. **启动 Proxy**：点「启动」，frpc 子进程运行，可点「日志」查看实时输出
 5. **查看 dashboard**：在「frps 服务端」页点对应服务端的「查看 dashboard」
 
-## 命名约束（这是本应用的核心设计）
+## 进程模型
 
-为了避免 `test1`、`a`、`temp` 这种没意义的 proxy 名造成长期维护灾难，强制：
-
-- 所有 Proxy 必须挂在某个 Project 下
-- name = `{project}-{purpose}`，前缀来自项目名，自动拼接
-- 项目名和用途都受正则约束（小写字母/数字/连字符）
-- 黑名单：拒绝 `test`、`test1`、`temp`、`a`、`b`、`1`、`xxx`、`demo`、`foo`、`bar` 等占位词
-- 同一 frps 服务端内 name 查重
-- 必填描述（≥10 字符）
+- 每个 frps 服务端 = 一个 frpc 子进程
+- 该服务端下所有**启用**的 proxy 共享这一个 frpc，多个 `[[proxies]]` 段写到一个 toml 里
+- 启停某个 proxy → 重写该 server 的 toml 并重启它的 frpc 进程；不会影响其他服务端
+- frpc 进程崩溃或被关掉时，UI 自动检测并把状态切到「已崩溃 / 已停止」
 
 ## 架构
 
 - **桌面外壳**：Tauri 2（Rust）
 - **前端**：Vue 3 + TypeScript + Tailwind v3 + shadcn-vue 风格组件
 - **本地存储**：单 JSON 文件，路径 `app_data_dir/store.json`，原子写入
-- **frpc 集成**：调用官方 frpc 二进制（sidecar 模式，随包分发，锁定 v0.69.0）。每个启用的 proxy 一个独立的 frpc 子进程，独立 toml 配置文件
+- **frpc 集成**：调用官方 frpc 二进制（sidecar 模式，随包分发，锁定 v0.69.0）。每个 frps 服务端一个 frpc 子进程，承载该 server 下所有启用 proxy
 - **frps 接入**：调用 frps Admin HTTP API（`/api/serverinfo`、`/api/proxy/{type}`）
 
 详细架构决策见 [docs/STATUS.md](docs/STATUS.md)。

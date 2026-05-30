@@ -1,8 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   FrpsServer,
-  Project,
-  ProjectInput,
   Proxy,
   ProxyInput,
   ServerInput,
@@ -12,12 +10,6 @@ import type {
 
 export const storeApi = {
   getState: () => invoke<StoreData>("get_state"),
-
-  createProject: (input: ProjectInput) =>
-    invoke<Project>("create_project", { input }),
-  updateProject: (id: string, input: ProjectInput) =>
-    invoke<Project>("update_project", { id, input }),
-  deleteProject: (id: string) => invoke<void>("delete_project", { id }),
 
   createServer: (input: ServerInput) =>
     invoke<FrpsServer>("create_server", { input }),

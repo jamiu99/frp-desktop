@@ -9,15 +9,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Network, Pencil, Trash2, Play, Square, FileText } from "@lucide/vue";
+import { Plus, Network, Pencil, Trash2, Play, Square } from "@lucide/vue";
 import ProxyFormDialog from "@/components/forms/ProxyFormDialog.vue";
-import ProxyLogsDialog from "@/components/forms/ProxyLogsDialog.vue";
 import { ConfirmDialog } from "@/components/ui/confirm";
 import { useDataStore } from "@/stores/data";
 import { useRuntimeStore } from "@/stores/runtime";
 import { toast } from "@/components/ui/toast";
 import type { Proxy } from "@/types/store";
-import type { ProxyRunStatus } from "@/types/runtime";
 
 const data = useDataStore();
 const runtime = useRuntimeStore();
@@ -25,50 +23,11 @@ const runtime = useRuntimeStore();
 const formOpen = ref(false);
 const editing = ref<Proxy | null>(null);
 
-const logsOpen = ref(false);
-const logsTarget = ref<Proxy | null>(null);
-
 const confirmOpen = ref(false);
 const pendingDelete = ref<Proxy | null>(null);
 const deleting = ref(false);
 
 const filter = ref("");
-
-function statusOf(id: string): ProxyRunStatus {
-  return runtime.runtimes.get(id)?.status ?? "stopped";
-}
-function statusBadge(s: ProxyRunStatus) {
-  switch (s) {
-    case "running":
-      return { variant: "success" as const, text: "running" };
-    case "starting":
-      return { variant: "warning" as const, text: "starting" };
-    case "crashed":
-      return { variant: "destructive" as const, text: "crashed" };
-    default:
-      return { variant: "outline" as const, text: "stopped" };
-  }
-}
-
-async function toggleRun(p: Proxy) {
-  const s = statusOf(p.id);
-  try {
-    if (s === "running" || s === "starting") {
-      await runtime.stop(p.id);
-      toast.success(`已停止 ${p.name}`);
-    } else {
-      await runtime.start(p.id);
-      toast.success(`已启动 ${p.name}`);
-    }
-  } catch (e) {
-    toast.fromError(e);
-  }
-}
-
-function openLogs(p: Proxy) {
-  logsTarget.value = p;
-  logsOpen.value = true;
-}
 
 function openCreate() {
   editing.value = null;
@@ -96,6 +55,20 @@ async function doDelete() {
   }
 }
 
+async function toggleRun(p: Proxy) {
+  try {
+    if (p.enabled) {
+      await runtime.stopProxy(p.id);
+      await data.fetchAll();
+    } else {
+      await runtime.startProxy(p.id);
+      await data.fetchAll();
+    }
+  } catch (e) {
+    toast.fromError(e);
+  }
+}
+
 const filtered = computed(() => {
   const q = filter.value.trim().toLowerCase();
   if (!q) return data.proxies;
@@ -107,16 +80,11 @@ const filtered = computed(() => {
   );
 });
 
-function projectName(id: string) {
-  return data.projectById.get(id)?.name ?? "(deleted)";
-}
 function serverName(id: string) {
-  return data.serverById.get(id)?.name ?? "(deleted)";
+  return data.serverById.get(id)?.name ?? "(已删除)";
 }
 
-const canCreate = computed(
-  () => data.projects.length > 0 && data.servers.length > 0,
-);
+const canCreate = computed(() => data.servers.length > 0);
 </script>
 
 <template>
@@ -124,7 +92,9 @@ const canCreate = computed(
     <div class="flex items-center justify-between gap-4">
       <div>
         <h2 class="text-2xl font-semibold tracking-tight">Proxy 列表</h2>
-        <p class="text-sm text-muted-foreground">所有已配置的代理（启停将在下一步实现）</p>
+        <p class="text-sm text-muted-foreground">
+          所有 proxy 的扁平视图。按服务端分组的视图见「frps 服务端」页
+        </p>
       </div>
       <Button :disabled="!canCreate" @click="openCreate">
         <Plus class="h-4 w-4" />
@@ -134,10 +104,8 @@ const canCreate = computed(
 
     <Card v-if="!canCreate">
       <CardHeader>
-        <CardTitle>需要先准备好项目和服务端</CardTitle>
-        <CardDescription>
-          创建 Proxy 前需要至少 1 个项目 和 1 个 frps 服务端
-        </CardDescription>
+        <CardTitle>需要先添加 frps 服务端</CardTitle>
+        <CardDescription>到「frps 服务端」页添加一个</CardDescription>
       </CardHeader>
     </Card>
 
@@ -147,7 +115,7 @@ const canCreate = computed(
           <Network class="h-6 w-6 text-muted-foreground" />
         </div>
         <CardTitle>还没有 Proxy</CardTitle>
-        <CardDescription>到「项目」页面或者用上面的按钮新建一个</CardDescription>
+        <CardDescription>点上方「新建 Proxy」开始</CardDescription>
       </CardHeader>
     </Card>
 
@@ -163,8 +131,8 @@ const canCreate = computed(
                 <th class="px-4 py-2 text-left font-medium">类型</th>
                 <th class="px-4 py-2 text-left font-medium">本地</th>
                 <th class="px-4 py-2 text-left font-medium">远端 / 域名</th>
-                <th class="px-4 py-2 text-left font-medium">项目 / 服务端</th>
-                <th class="px-4 py-2 text-left font-medium">运行</th>
+                <th class="px-4 py-2 text-left font-medium">服务端</th>
+                <th class="px-4 py-2 text-left font-medium">状态</th>
                 <th class="px-4 py-2"></th>
               </tr>
             </thead>
@@ -176,7 +144,9 @@ const canCreate = computed(
               >
                 <td class="px-4 py-2">
                   <div class="font-medium font-mono">{{ p.name }}</div>
-                  <div class="text-xs text-muted-foreground line-clamp-1">{{ p.description }}</div>
+                  <div v-if="p.description" class="text-xs text-muted-foreground line-clamp-1">
+                    {{ p.description }}
+                  </div>
                 </td>
                 <td class="px-4 py-2">
                   <Badge variant="secondary" class="font-mono">{{ p.proxy_type }}</Badge>
@@ -188,43 +158,22 @@ const canCreate = computed(
                   <span v-else>-</span>
                 </td>
                 <td class="px-4 py-2 text-xs">
-                  <div>{{ projectName(p.project_id) }}</div>
-                  <div class="text-muted-foreground">{{ serverName(p.server_id) }}</div>
+                  {{ serverName(p.server_id) }}
                 </td>
                 <td class="px-4 py-2">
-                  <div class="flex items-center gap-2">
-                    <Badge :variant="statusBadge(statusOf(p.id)).variant">
-                      {{ statusBadge(statusOf(p.id)).text }}
-                    </Badge>
-                    <Button
-                      size="sm"
-                      :variant="
-                        statusOf(p.id) === 'running' || statusOf(p.id) === 'starting'
-                          ? 'destructive'
-                          : 'default'
-                      "
-                      @click="toggleRun(p)"
-                    >
-                      <component
-                        :is="
-                          statusOf(p.id) === 'running' || statusOf(p.id) === 'starting'
-                            ? Square
-                            : Play
-                        "
-                        class="h-3.5 w-3.5"
-                      />
-                      {{
-                        statusOf(p.id) === 'running' || statusOf(p.id) === 'starting'
-                          ? '停止'
-                          : '启动'
-                      }}
-                    </Button>
-                  </div>
+                  <Badge :variant="p.enabled ? 'success' : 'outline'">
+                    {{ p.enabled ? "已启用" : "已停用" }}
+                  </Badge>
                 </td>
                 <td class="px-4 py-2 text-right">
                   <div class="flex justify-end gap-1">
-                    <Button size="icon" variant="ghost" title="日志" @click="openLogs(p)">
-                      <FileText class="h-4 w-4" />
+                    <Button
+                      size="sm"
+                      :variant="p.enabled ? 'destructive' : 'default'"
+                      @click="toggleRun(p)"
+                    >
+                      <component :is="p.enabled ? Square : Play" class="h-3.5 w-3.5" />
+                      {{ p.enabled ? "停止" : "启动" }}
                     </Button>
                     <Button size="icon" variant="ghost" @click="openEdit(p)">
                       <Pencil class="h-4 w-4" />
@@ -252,7 +201,6 @@ const canCreate = computed(
     </template>
 
     <ProxyFormDialog v-model:open="formOpen" :proxy="editing" />
-    <ProxyLogsDialog v-model:open="logsOpen" :proxy="logsTarget" />
     <ConfirmDialog
       v-model:open="confirmOpen"
       :title="`删除 Proxy “${pendingDelete?.name ?? ''}” ?`"

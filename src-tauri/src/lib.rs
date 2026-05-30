@@ -28,7 +28,6 @@ pub fn run() {
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let app = window.app_handle();
-                // 读取 close_to_tray 设置
                 let close_to_tray = app
                     .try_state::<Store>()
                     .map(|s| s.snapshot().settings.close_to_tray)
@@ -38,7 +37,6 @@ pub fn run() {
                     api.prevent_close();
                     let _ = window.hide();
                 } else {
-                    // 真正退出前清掉子进程
                     if let Some(rt) = app.try_state::<Runtime>() {
                         frpc::shutdown_all(&rt);
                     }
@@ -48,9 +46,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             ports::list_ports,
             store::get_state,
-            store::create_project,
-            store::update_project,
-            store::delete_project,
             store::create_server,
             store::update_server,
             store::delete_server,
@@ -62,7 +57,9 @@ pub fn run() {
             frpc::list_runtime,
             frpc::start_proxy,
             frpc::stop_proxy,
-            frpc::proxy_logs,
+            frpc::start_server,
+            frpc::stop_server,
+            frpc::server_logs,
             frpc::check_frpc,
         ])
         .run(tauri::generate_context!())

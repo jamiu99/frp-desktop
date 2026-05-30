@@ -21,8 +21,6 @@ import type { Proxy, ProxyInput, ProxyType } from "@/types/store";
 const props = defineProps<{
   open: boolean;
   proxy?: Proxy | null;
-  /** 创建时可预选项目 */
-  defaultProjectId?: string;
   /** 创建时可预选服务端 */
   defaultServerId?: string;
 }>();
@@ -33,15 +31,9 @@ const emit = defineEmits<{
 const data = useDataStore();
 const submitting = ref(false);
 
-const PURPOSE_BLACKLIST = new Set([
-  "test", "test1", "test2", "temp", "tmp", "a", "b", "c",
-  "1", "2", "xxx", "yyy", "demo", "foo", "bar",
-]);
-
 interface FormState {
-  project_id: string;
   server_id: string;
-  purpose: string;
+  name: string;
   description: string;
   proxy_type: ProxyType;
   local_ip: string;
@@ -51,9 +43,8 @@ interface FormState {
 }
 
 const form = reactive<FormState>({
-  project_id: "",
   server_id: "",
-  purpose: "",
+  name: "",
   description: "",
   proxy_type: "tcp",
   local_ip: "127.0.0.1",
@@ -68,9 +59,8 @@ watch(
     if (!open) return;
     if (props.proxy) {
       Object.assign(form, {
-        project_id: props.proxy.project_id,
         server_id: props.proxy.server_id,
-        purpose: props.proxy.purpose,
+        name: props.proxy.name,
         description: props.proxy.description,
         proxy_type: props.proxy.proxy_type,
         local_ip: props.proxy.local_ip,
@@ -80,9 +70,8 @@ watch(
       });
     } else {
       Object.assign(form, {
-        project_id: props.defaultProjectId ?? data.projects[0]?.id ?? "",
         server_id: props.defaultServerId ?? data.servers[0]?.id ?? "",
-        purpose: "",
+        name: "",
         description: "",
         proxy_type: "tcp",
         local_ip: "127.0.0.1",
@@ -94,46 +83,30 @@ watch(
   },
 );
 
-const project = computed(() =>
-  data.projects.find((p) => p.id === form.project_id),
+const nameValid = computed(
+  () => /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$/.test(form.name),
 );
-const computedName = computed(() =>
-  project.value && form.purpose ? `${project.value.name}-${form.purpose}` : "",
-);
-
-const purposeValid = computed(() => {
-  if (!form.purpose) return false;
-  if (!/^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/.test(form.purpose)) return false;
-  if (PURPOSE_BLACKLIST.has(form.purpose)) return false;
-  return true;
-});
-const purposeBlacklisted = computed(() =>
-  PURPOSE_BLACKLIST.has(form.purpose),
-);
-
-const descLen = computed(() => form.description.trim().length);
-const descValid = computed(() => descLen.value >= 10);
 
 const nameConflict = computed(() => {
-  if (!computedName.value) return false;
+  if (!form.name) return false;
   return data.proxies.some(
     (p) =>
       p.id !== props.proxy?.id &&
       p.server_id === form.server_id &&
-      p.name === computedName.value,
+      p.name === form.name,
   );
 });
 
-const needsRemotePort = computed(() =>
-  form.proxy_type === "tcp" || form.proxy_type === "udp",
+const needsRemotePort = computed(
+  () => form.proxy_type === "tcp" || form.proxy_type === "udp",
 );
-const needsCustomDomains = computed(() =>
-  form.proxy_type === "http" || form.proxy_type === "https",
+const needsCustomDomains = computed(
+  () => form.proxy_type === "http" || form.proxy_type === "https",
 );
 
 const formValid = computed(() => {
-  if (!form.project_id || !form.server_id) return false;
-  if (!purposeValid.value || !descValid.value || nameConflict.value) return false;
+  if (!form.server_id) return false;
+  if (!nameValid.value || nameConflict.value) return false;
   if (!form.local_ip || !form.local_port) return false;
   if (needsRemotePort.value && !form.remote_port) return false;
   if (needsCustomDomains.value && !form.custom_domains_text.trim()) return false;
@@ -145,9 +118,8 @@ async function submit() {
   submitting.value = true;
   try {
     const payload: ProxyInput = {
-      project_id: form.project_id,
       server_id: form.server_id,
-      purpose: form.purpose,
+      name: form.name,
       description: form.description,
       proxy_type: form.proxy_type,
       local_ip: form.local_ip,
@@ -182,61 +154,49 @@ async function submit() {
       <DialogHeader>
         <DialogTitle>{{ proxy ? "编辑 Proxy" : "新建 Proxy" }}</DialogTitle>
         <DialogDescription>
-          name 由 <code class="font-mono">项目名-用途</code> 自动拼接，描述至少 10 字
+          填写 frpc 配置信息。同一 frps 服务端下的 name 不可重复。
         </DialogDescription>
       </DialogHeader>
 
       <form class="space-y-4" @submit.prevent="submit">
         <div class="grid grid-cols-2 gap-3">
           <div class="space-y-2">
-            <Label>项目</Label>
-            <NativeSelect v-model="form.project_id" :disabled="!!proxy">
-              <option v-if="data.projects.length === 0" value="">先去创建一个项目</option>
-              <option v-for="p in data.projects" :key="p.id" :value="p.id">
-                {{ p.name }}
-              </option>
-            </NativeSelect>
-          </div>
-          <div class="space-y-2">
             <Label>frps 服务端</Label>
             <NativeSelect v-model="form.server_id">
-              <option v-if="data.servers.length === 0" value="">先去添加一个服务端</option>
+              <option v-if="data.servers.length === 0" value="">
+                先到「frps 服务端」页添加一个
+              </option>
               <option v-for="s in data.servers" :key="s.id" :value="s.id">
                 {{ s.name }} ({{ s.host }})
               </option>
             </NativeSelect>
           </div>
+          <div class="space-y-2">
+            <Label>Name</Label>
+            <Input v-model="form.name" placeholder="如 nas-ssh、blog-web" />
+          </div>
         </div>
 
-        <div class="space-y-2">
-          <Label for="purpose">用途（purpose）</Label>
-          <Input id="purpose" v-model="form.purpose" placeholder="如：ssh、webui、api" />
-          <p class="text-xs"
-             :class="
-               (form.purpose && !purposeValid) || nameConflict
-                 ? 'text-destructive'
-                 : 'text-muted-foreground'
-             ">
-            <span v-if="!form.purpose">小写字母/数字/连字符，2~32 字符</span>
-            <span v-else-if="purposeBlacklisted">不允许的占位词："{{ form.purpose }}" — 请写有意义的用途</span>
-            <span v-else-if="!purposeValid">格式不对：小写字母/数字/连字符开头结尾</span>
-            <span v-else-if="nameConflict">同 frps 下已存在 proxy：{{ computedName }}</span>
-            <span v-else>name 将是 <code class="font-mono">{{ computedName }}</code></span>
-          </p>
-        </div>
+        <p
+          v-if="form.name"
+          class="text-xs"
+          :class="
+            !nameValid || nameConflict
+              ? 'text-destructive'
+              : 'text-muted-foreground'
+          "
+        >
+          <span v-if="!nameValid">name 只能字母/数字/下划线/点/连字符，最多 64 字符</span>
+          <span v-else-if="nameConflict">同 frps 下已存在同名 proxy：{{ form.name }}</span>
+          <span v-else>同一 frps 下不可重名</span>
+        </p>
 
         <div class="space-y-2">
-          <Label for="desc">
-            描述
-            <span class="ml-2 text-xs"
-                  :class="descValid ? 'text-muted-foreground' : 'text-destructive'">
-              {{ descLen }} / 10+
-            </span>
-          </Label>
+          <Label for="desc">描述（可选）</Label>
           <Textarea
             id="desc"
             v-model="form.description"
-            placeholder="这个 proxy 是干嘛的？例：从外网 SSH 到家里 NAS；跑 jellyfin web UI"
+            placeholder="可写可不写"
             rows="2"
           />
         </div>

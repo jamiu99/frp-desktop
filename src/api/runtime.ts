@@ -1,13 +1,17 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ProxyRuntime } from "@/types/runtime";
+import type { ServerRuntime } from "@/types/runtime";
 
 export const runtimeApi = {
-  listRuntime: () => invoke<ProxyRuntime[]>("list_runtime"),
-  startProxy: (proxy_id: string) =>
-    invoke<ProxyRuntime>("start_proxy", { proxyId: proxy_id }),
-  stopProxy: (proxy_id: string) =>
-    invoke<void>("stop_proxy", { proxyId: proxy_id }),
-  proxyLogs: (proxy_id: string) =>
-    invoke<string[]>("proxy_logs", { proxyId: proxy_id }),
+  listRuntime: () => invoke<ServerRuntime[]>("list_runtime"),
+  startProxy: (proxyId: string) =>
+    invoke<void>("start_proxy", { proxyId }),
+  stopProxy: (proxyId: string) =>
+    invoke<void>("stop_proxy", { proxyId }),
+  startServer: (serverId: string) =>
+    invoke<void>("start_server", { serverId }),
+  stopServer: (serverId: string) =>
+    invoke<void>("stop_server", { serverId }),
+  serverLogs: (serverId: string) =>
+    invoke<string[]>("server_logs", { serverId }),
   checkFrpc: () => invoke<string>("check_frpc"),
 };

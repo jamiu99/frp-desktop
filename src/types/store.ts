@@ -1,13 +1,5 @@
 // 与 src-tauri/src/store.rs 同步
 
-export interface Project {
-  id: string;
-  name: string;
-  description: string;
-  color: string | null;
-  created_at: string;
-}
-
 export interface FrpsServer {
   id: string;
   name: string;
@@ -24,10 +16,8 @@ export type ProxyType = "tcp" | "udp" | "http" | "https" | "stcp";
 
 export interface Proxy {
   id: string;
-  project_id: string;
   server_id: string;
   name: string;
-  purpose: string;
   description: string;
   proxy_type: ProxyType;
   local_ip: string;
@@ -42,19 +32,13 @@ export interface Settings {
   close_to_tray: boolean;
   autostart: boolean;
   frpc_path: string | null;
+  show_frpc_console: boolean;
 }
 
 export interface StoreData {
-  projects: Project[];
   servers: FrpsServer[];
   proxies: Proxy[];
   settings: Settings;
-}
-
-export interface ProjectInput {
-  name: string;
-  description: string;
-  color?: string | null;
 }
 
 export interface ServerInput {
@@ -68,14 +52,12 @@ export interface ServerInput {
 }
 
 export interface ProxyInput {
-  project_id: string;
   server_id: string;
-  purpose: string;
-  description: string;
+  name: string;
+  description?: string;
   proxy_type: ProxyType;
   local_ip: string;
   local_port: number;
   remote_port?: number | null;
   custom_domains?: string[];
-  enabled?: boolean;
 }

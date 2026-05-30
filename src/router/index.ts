@@ -3,25 +3,19 @@ import { createRouter, createWebHashHistory, type RouteRecordRaw } from "vue-rou
 const routes: RouteRecordRaw[] = [
   {
     path: "/",
-    redirect: "/projects",
-  },
-  {
-    path: "/projects",
-    name: "projects",
-    component: () => import("@/views/ProjectsView.vue"),
-    meta: { title: "项目" },
-  },
-  {
-    path: "/proxies",
-    name: "proxies",
-    component: () => import("@/views/ProxiesView.vue"),
-    meta: { title: "Proxy 列表" },
+    redirect: "/servers",
   },
   {
     path: "/servers",
     name: "servers",
     component: () => import("@/views/ServersView.vue"),
     meta: { title: "frps 服务端" },
+  },
+  {
+    path: "/proxies",
+    name: "proxies",
+    component: () => import("@/views/ProxiesView.vue"),
+    meta: { title: "Proxy 列表" },
   },
   {
     path: "/dashboard/:serverId",

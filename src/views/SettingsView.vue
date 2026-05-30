@@ -25,6 +25,7 @@ const data = useDataStore();
 const frpcPath = ref<string>("");
 const closeToTray = ref(false);
 const autostart = ref(false);
+const showFrpcConsole = ref(false);
 
 watch(
   () => data.settings,
@@ -32,6 +33,7 @@ watch(
     frpcPath.value = s.frpc_path ?? "";
     closeToTray.value = s.close_to_tray;
     autostart.value = s.autostart;
+    showFrpcConsole.value = s.show_frpc_console;
   },
   { immediate: true, deep: true },
 );
@@ -42,6 +44,7 @@ async function save() {
       frpc_path: frpcPath.value.trim() || null,
       close_to_tray: closeToTray.value,
       autostart: autostart.value,
+      show_frpc_console: showFrpcConsole.value,
     });
     // 同步操作系统层面的开机自启
     try {
@@ -127,6 +130,10 @@ async function checkFrpc() {
         <label class="flex items-center gap-2 text-sm">
           <input v-model="autostart" type="checkbox" />
           开机自启
+        </label>
+        <label class="flex items-center gap-2 text-sm">
+          <input v-model="showFrpcConsole" type="checkbox" />
+          显示 frpc 控制台窗口（仅 Windows，调试时打开；改动后下次启动 proxy 生效）
         </label>
         <Button @click="save">保存</Button>
       </CardContent>

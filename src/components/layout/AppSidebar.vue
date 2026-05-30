@@ -1,22 +1,14 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, RouterLink } from "vue-router";
-import {
-  FolderKanban,
-  Network,
-  Server,
-  Settings,
-  Activity,
-  Plug,
-} from "@lucide/vue";
+import { Network, Server, Settings, Activity, Plug } from "@lucide/vue";
 import { cn } from "@/lib/utils";
 
 const route = useRoute();
 
 const navItems = [
-  { to: "/projects", label: "项目", icon: FolderKanban },
-  { to: "/proxies", label: "Proxy", icon: Network },
   { to: "/servers", label: "frps 服务端", icon: Server },
+  { to: "/proxies", label: "Proxy", icon: Network },
   { to: "/ports", label: "本机端口", icon: Plug },
   { to: "/settings", label: "设置", icon: Settings },
 ];
@@ -53,7 +45,7 @@ const currentPath = computed(() => route.path);
     </nav>
 
     <div class="border-t p-3 text-xs text-muted-foreground">
-      <p>v0.1.0</p>
+      <p>v0.1.1</p>
     </div>
   </aside>
 </template>
