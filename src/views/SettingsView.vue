@@ -104,10 +104,7 @@ async function checkFrpc() {
 
 <template>
   <div class="space-y-6">
-    <div>
-      <h2 class="text-2xl font-semibold tracking-tight">设置</h2>
-      <p class="text-sm text-muted-foreground">应用偏好与运行行为</p>
-    </div>
+    <p class="text-sm text-muted-foreground">应用偏好与运行行为</p>
 
     <Card>
       <CardHeader>

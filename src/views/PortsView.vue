@@ -107,13 +107,10 @@ function protoVariant(p: string) {
 <template>
   <div class="space-y-4">
     <div class="flex items-start justify-between gap-4">
-      <div>
-        <h2 class="text-2xl font-semibold tracking-tight">本机端口</h2>
-        <p class="text-sm text-muted-foreground">
-          当前电脑上所有 TCP/UDP socket。配置 frpc 时可以来这里查端口。
-        </p>
-      </div>
-      <Button :disabled="loading" variant="outline" @click="refresh">
+      <p class="text-sm text-muted-foreground">
+        当前电脑上所有 TCP/UDP socket。配置 frpc 时可以来这里查端口。
+      </p>
+      <Button class="shrink-0" :disabled="loading" variant="outline" @click="refresh">
         <RefreshCw :class="cn('h-4 w-4', loading && 'animate-spin')" />
         刷新
       </Button>

@@ -90,13 +90,10 @@ const canCreate = computed(() => data.servers.length > 0);
 <template>
   <div class="space-y-4">
     <div class="flex items-center justify-between gap-4">
-      <div>
-        <h2 class="text-2xl font-semibold tracking-tight">Proxy 列表</h2>
-        <p class="text-sm text-muted-foreground">
-          所有 proxy 的扁平视图。按服务端分组的视图见「frps 服务端」页
-        </p>
-      </div>
-      <Button :disabled="!canCreate" @click="openCreate">
+      <p class="text-sm text-muted-foreground">
+        所有 proxy 的扁平视图。按服务端分组的视图见「frps 服务端」页
+      </p>
+      <Button class="shrink-0" :disabled="!canCreate" @click="openCreate">
         <Plus class="h-4 w-4" />
         新建 Proxy
       </Button>

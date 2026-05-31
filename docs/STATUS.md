@@ -91,6 +91,13 @@ frp_desktop 是一个跨平台（Windows / macOS / Linux）的桌面应用，定
 | 2026-05-30 | v0.1.2 UI 改版 + 几处修复 | 配色改米色暖调 + 墨色主色（去蓝），收紧圆角（--radius 0.375rem，Badge 改 3px 小圆角 + 浅底深字）。修 HTTP scope（http://** 匹配不到带端口/路径的 dashboard URL，改成 http(s)://* 等四种组合）。弹窗加 max-h-90vh + 整体滚动，解决小窗口下标题被裁。「在浏览器打开 dashboard」从 `<a target=_blank>`（Tauri webview 不认）改为 plugin-opener 的 openUrl + opener:allow-open-url scope |
 | 2026-05-30 | v0.1.3 应用内自动更新 | tauri-plugin-updater + process。minisign 密钥对（私钥存 GitHub Secret，公钥进 tauri.conf.json）。CI 注入签名 env + includeUpdaterJson 产出 latest.json。前端 useUpdater composable + UpdateDialog；启动静默检查有新版弹窗，设置页「检查更新」手动触发；下载验签后安装 + 重启。endpoint = releases/latest/download/latest.json（注意：release 必须 publish 后才能被 latest 检测到，draft 不行）。**升级 frpc 须保留同一签名私钥，否则旧版无法验证新包** |
 
+### v0.1.4（2026-06-01）
+
+- 去掉各页面内容区与顶栏重复的一级标题（顶栏已显示页名）
+- 标题字号 text-2xl → text-lg，整体更克制
+- 换新应用图标（海獭 logo），侧栏 logo 用 public/logo.png
+- Windows NSIS 安装模式固定为 currentUser（不弹 UAC / 不再让用户选安装范围），中文界面。用户数据在 %APPDATA% 卸载默认保留
+
 ## 自动更新维护须知（重要）
 
 - 签名私钥已存为 GitHub Secret：`TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`

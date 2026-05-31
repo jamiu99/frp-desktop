@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, RouterLink } from "vue-router";
-import { Network, Server, Settings, Activity, Plug } from "@lucide/vue";
+import { Network, Server, Settings, Plug } from "@lucide/vue";
 import { cn } from "@/lib/utils";
 
 const route = useRoute();
@@ -21,7 +21,7 @@ const currentPath = computed(() => route.path);
     class="flex h-full w-56 shrink-0 flex-col border-r bg-card/40 backdrop-blur"
   >
     <div class="flex h-14 items-center gap-2 border-b px-4">
-      <Activity class="h-5 w-5 text-primary" />
+      <img src="/logo.png" alt="logo" class="h-6 w-6" />
       <span class="text-sm font-semibold tracking-tight">frp_desktop</span>
     </div>
 
@@ -45,7 +45,7 @@ const currentPath = computed(() => route.path);
     </nav>
 
     <div class="border-t p-3 text-xs text-muted-foreground">
-      <p>v0.1.3</p>
+      <p>v0.1.4</p>
     </div>
   </aside>
 </template>

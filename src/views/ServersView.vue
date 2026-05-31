@@ -152,14 +152,11 @@ function proxyTypeStyle(_t: string) {
 
 <template>
   <div class="space-y-6">
-    <div class="flex items-center justify-between">
-      <div>
-        <h2 class="text-2xl font-semibold tracking-tight">frps 服务端</h2>
-        <p class="text-sm text-muted-foreground">
-          每个服务端下的 proxy 共用同一个 frpc 进程，启停互不影响其他服务端
-        </p>
-      </div>
-      <Button @click="openCreateServer">
+    <div class="flex items-center justify-between gap-4">
+      <p class="text-sm text-muted-foreground">
+        每个服务端下的 proxy 共用同一个 frpc 进程，启停互不影响其他服务端
+      </p>
+      <Button class="shrink-0" @click="openCreateServer">
         <Plus class="h-4 w-4" />
         添加服务端
       </Button>

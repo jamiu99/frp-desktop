@@ -130,7 +130,7 @@ const cols: { key: SortKey; label: string }[] = [
   <div v-else class="space-y-4">
     <div class="flex items-start justify-between gap-4">
       <div class="min-w-0">
-        <h2 class="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+        <h2 class="flex items-center gap-2 text-lg font-semibold tracking-tight">
           <Server class="h-5 w-5 text-primary" />
           {{ server.name }} dashboard
         </h2>
