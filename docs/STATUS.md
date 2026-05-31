@@ -98,6 +98,13 @@ frp_desktop 是一个跨平台（Windows / macOS / Linux）的桌面应用，定
 - 换新应用图标（海獭 logo），侧栏 logo 用 public/logo.png
 - Windows NSIS 安装模式固定为 currentUser（不弹 UAC / 不再让用户选安装范围），中文界面。用户数据在 %APPDATA% 卸载默认保留
 
+### v0.1.5（2026-06-01）
+
+- 修复自动更新时 frpc.exe 被占用导致无法覆盖 + 旧 frpc 变孤儿进程的 bug：
+  - `shutdown_all` 在 kill 后补 `wait()`（Windows kill 异步，不 wait 文件仍被占用）
+  - 新增 `stop_all_proxies` 命令，前端在 `downloadAndInstall` 前先调用，干净停掉所有 frpc 再下载/覆盖
+- 注意：此修复在新版生效，从 0.1.4 更新到 0.1.5 这一次若卡住，手动停掉 proxy 再更新即可
+
 ## 自动更新维护须知（重要）
 
 - 签名私钥已存为 GitHub Secret：`TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`

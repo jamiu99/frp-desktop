@@ -1,6 +1,7 @@
 import { ref, shallowRef } from "vue";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { invoke } from "@tauri-apps/api/core";
 
 /**
  * 应用自动更新。
@@ -60,6 +61,9 @@ export function useUpdater() {
     total.value = null;
     phase.value = "downloading";
     try {
+      // 先停掉所有 frpc 子进程：否则 Windows 上 frpc.exe 被占用，
+      // updater 覆盖文件会失败，且重启后旧 frpc 会变孤儿进程
+      await invoke("stop_all_proxies").catch(() => {});
       await update.downloadAndInstall((event) => {
         switch (event.event) {
           case "Started":

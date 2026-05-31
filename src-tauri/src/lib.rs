@@ -67,6 +67,7 @@ pub fn run() {
             frpc::stop_server,
             frpc::server_logs,
             frpc::check_frpc,
+            frpc::stop_all_proxies,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

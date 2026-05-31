@@ -561,6 +561,18 @@ pub fn check_frpc(app: AppHandle) -> Result<String, String> {
 pub fn shutdown_all(runtime: &Runtime) {
     let mut g = runtime.procs.lock().unwrap();
     for (_, mut p) in g.drain() {
+        *p.status.lock().unwrap() = ProxyRunStatus::Stopped;
         let _ = p.child.kill();
+        // 必须 wait，否则 Windows 上 kill 是异步的，进程还没退出就去覆盖
+        // frpc.exe 会失败（文件被占用），且残留孤儿进程
+        let _ = p.child.wait();
     }
+}
+
+/// 应用更新/退出前调用：停掉所有 frpc 子进程并等待其真正退出。
+/// 解决 Windows 自动更新时 frpc.exe 被占用无法覆盖、以及子进程变孤儿的问题。
+#[tauri::command]
+pub fn stop_all_proxies(runtime: tauri::State<Runtime>) -> Result<(), String> {
+    shutdown_all(&runtime);
+    Ok(())
 }
