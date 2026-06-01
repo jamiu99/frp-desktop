@@ -1214,7 +1214,7 @@ dependencies = [
 
 [[package]]
 name = "frp_desktop"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "chrono",
  "netstat2",

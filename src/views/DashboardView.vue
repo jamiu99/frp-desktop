@@ -120,6 +120,18 @@ const cols: { key: SortKey; label: string }[] = [
   { key: "today_traffic_in", label: "今日入站" },
   { key: "today_traffic_out", label: "今日出站" },
 ];
+
+/** 从 proxy 的 conf 里取"端口/域名"展示文本，兼容 snake_case / camelCase */
+function portText(p: FrpsProxyInfo): string {
+  const conf = (p.conf ?? {}) as Record<string, unknown>;
+  const remotePort = conf.remote_port ?? conf.remotePort;
+  if (remotePort) return `:${remotePort}`;
+  const domains = (conf.custom_domains ?? conf.customDomains) as
+    | string[]
+    | undefined;
+  if (domains && domains.length) return domains.join(", ");
+  return "-";
+}
 </script>
 
 <template>
@@ -207,11 +219,14 @@ const cols: { key: SortKey; label: string }[] = [
                     <component :is="sortIcon(c.key)" class="h-3 w-3" />
                   </span>
                 </th>
+                <th class="whitespace-nowrap px-4 py-2 text-left font-medium">
+                  端口 / 域名
+                </th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="!loading && filteredSorted.length === 0" class="border-b">
-                <td colspan="6" class="p-8 text-center text-muted-foreground">
+                <td colspan="7" class="p-8 text-center text-muted-foreground">
                   {{ filter ? "没有匹配" : "服务端没有 proxy" }}
                 </td>
               </tr>
@@ -235,6 +250,9 @@ const cols: { key: SortKey; label: string }[] = [
                 </td>
                 <td class="px-4 py-2 tabular-nums font-mono text-xs">
                   {{ formatBytes(p.today_traffic_out) }}
+                </td>
+                <td class="px-4 py-2 font-mono text-xs text-muted-foreground">
+                  {{ portText(p) }}
                 </td>
               </tr>
             </tbody>

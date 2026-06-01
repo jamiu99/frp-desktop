@@ -110,6 +110,10 @@ frp_desktop 是一个跨平台（Windows / macOS / Linux）的桌面应用，定
 - 关窗口行为固定为「最小化到托盘后台运行」，不再是设置开关；完全退出走托盘右键「退出」。设置页移除 close_to_tray 勾选，改为说明文字
 - 修复日志乱码：frpc 控制台输出带 ANSI 颜色转义码（如 \x1b[1;34m），Rust 端 log_pump 读到每行先 strip_ansi 再存/推送
 
+### v0.1.7（2026-06-01）
+
+- frps Dashboard 的 proxy 表格新增「端口 / 域名」列：TCP/UDP 显示远端端口，HTTP/HTTPS 显示自定义域名。从 frps API 的 proxy conf 取，兼容 snake_case / camelCase（适配不同 frp 版本）
+
 ## 自动更新维护须知（重要）
 
 - 签名私钥已存为 GitHub Secret：`TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
