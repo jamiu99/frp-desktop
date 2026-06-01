@@ -92,6 +92,29 @@ fn frpc_path(app: &AppHandle) -> Result<PathBuf, String> {
     Err("找不到 frpc 二进制：未在设置里指定路径，sidecar 缺失，PATH 中也没有。".into())
 }
 
+/// 去掉 ANSI 转义序列（如 \x1b[1;34m），frpc 控制台输出带颜色会变乱码。
+fn strip_ansi(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            // ESC：吃掉 '[' 直到字母（CSI 序列结束符 @-~）
+            if chars.peek() == Some(&'[') {
+                chars.next();
+                while let Some(&n) = chars.peek() {
+                    chars.next();
+                    if n.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 fn which_in_path(name: &str) -> Option<PathBuf> {
     let path = env::var_os("PATH")?;
     for p in env::split_paths(&path) {
@@ -200,6 +223,7 @@ fn spawn_log_pump<R: std::io::Read + Send + 'static>(
         let buf = BufReader::new(reader);
         for line in buf.lines() {
             let Ok(line) = line else { break };
+            let line = strip_ansi(&line); // frpc 控制台输出带颜色转义码，去掉
             let lower = line.to_lowercase();
             if lower.contains("login to server success")
                 || lower.contains("start proxy success")

@@ -147,10 +147,9 @@ async function checkFrpc() {
         <CardDescription>关闭主窗口时与系统启动时的行为</CardDescription>
       </CardHeader>
       <CardContent class="space-y-3">
-        <label class="flex items-center gap-2 text-sm">
-          <input v-model="closeToTray" type="checkbox" />
-          关闭窗口时最小化到系统托盘（不退出 frpc）
-        </label>
+        <p class="text-sm text-muted-foreground">
+          关闭窗口会最小化到系统托盘后台运行（frpc 继续工作）；要完全退出，请右键托盘图标选「退出」。
+        </p>
         <label class="flex items-center gap-2 text-sm">
           <input v-model="autostart" type="checkbox" />
           开机自启

@@ -33,20 +33,10 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                let app = window.app_handle();
-                let close_to_tray = app
-                    .try_state::<Store>()
-                    .map(|s| s.snapshot().settings.close_to_tray)
-                    .unwrap_or(false);
-
-                if close_to_tray {
-                    api.prevent_close();
-                    let _ = window.hide();
-                } else {
-                    if let Some(rt) = app.try_state::<Runtime>() {
-                        frpc::shutdown_all(&rt);
-                    }
-                }
+                // 关闭窗口 = 隐藏到后台（托盘），frpc 继续在后台跑。
+                // 真正退出走托盘右键菜单的「退出」。
+                api.prevent_close();
+                let _ = window.hide();
             }
         })
         .invoke_handler(tauri::generate_handler![

@@ -105,6 +105,11 @@ frp_desktop 是一个跨平台（Windows / macOS / Linux）的桌面应用，定
   - 新增 `stop_all_proxies` 命令，前端在 `downloadAndInstall` 前先调用，干净停掉所有 frpc 再下载/覆盖
 - 注意：此修复在新版生效，从 0.1.4 更新到 0.1.5 这一次若卡住，手动停掉 proxy 再更新即可
 
+### v0.1.6（2026-06-01）
+
+- 关窗口行为固定为「最小化到托盘后台运行」，不再是设置开关；完全退出走托盘右键「退出」。设置页移除 close_to_tray 勾选，改为说明文字
+- 修复日志乱码：frpc 控制台输出带 ANSI 颜色转义码（如 \x1b[1;34m），Rust 端 log_pump 读到每行先 strip_ansi 再存/推送
+
 ## 自动更新维护须知（重要）
 
 - 签名私钥已存为 GitHub Secret：`TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`

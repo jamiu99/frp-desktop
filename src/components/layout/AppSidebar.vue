@@ -45,7 +45,7 @@ const currentPath = computed(() => route.path);
     </nav>
 
     <div class="border-t p-3 text-xs text-muted-foreground">
-      <p>v0.1.5</p>
+      <p>v0.1.6</p>
     </div>
   </aside>
 </template>
