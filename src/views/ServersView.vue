@@ -269,8 +269,8 @@ function proxyTypeStyle(_t: string) {
                   <span v-else>-</span>
                 </td>
                 <td class="px-4 py-2">
-                  <Badge :variant="p.enabled ? 'success' : 'outline'">
-                    {{ p.enabled ? "已启用" : "已停用" }}
+                  <Badge :variant="runtime.proxyStatus(p).variant">
+                    {{ runtime.proxyStatus(p).text }}
                   </Badge>
                 </td>
                 <td class="px-4 py-2 text-right">

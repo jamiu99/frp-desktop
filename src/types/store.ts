@@ -61,3 +61,21 @@ export interface ProxyInput {
   remote_port?: number | null;
   custom_domains?: string[];
 }
+
+// ---------- 配置导入 / 导出（与 src-tauri/src/transfer.rs 同步） ----------
+
+export type ImportMode = "merge" | "replace";
+
+export interface ImportReport {
+  servers_added: number;
+  servers_updated: number;
+  servers_removed: number;
+  proxies_added: number;
+  proxies_updated: number;
+  proxies_removed: number;
+}
+
+export interface ExportReport {
+  servers: number;
+  proxies: number;
+}

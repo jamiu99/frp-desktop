@@ -513,6 +513,11 @@ pub fn stop_server(
     runtime: tauri::State<Runtime>,
     server_id: String,
 ) -> Result<(), String> {
+    kill_server(&app, &runtime, server_id);
+    Ok(())
+}
+
+fn kill_server(app: &AppHandle, runtime: &Runtime, server_id: String) {
     let mut g = runtime.procs.lock().unwrap();
     if let Some(mut p) = g.remove(&server_id) {
         *p.status.lock().unwrap() = ProxyRunStatus::Stopped;
@@ -527,7 +532,32 @@ pub fn stop_server(
             status: ProxyRunStatus::Stopped,
         },
     );
-    Ok(())
+}
+
+/// 导入配置后调用：只处理当前正在跑的 frpc。
+/// - 服务端已不存在（覆盖导入 / 被删）→ 停掉
+/// - 服务端配置被导入更新过（touched）→ 按新配置重启
+/// - 其他保持不动，不打断无关隧道
+pub fn reconcile_after_import(
+    app: &AppHandle,
+    runtime: &Runtime,
+    store: &Store,
+    touched: &std::collections::HashSet<String>,
+) {
+    let running: Vec<String> = runtime.procs.lock().unwrap().keys().cloned().collect();
+    let snap = store.snapshot();
+    for id in running {
+        match snap.servers.iter().find(|s| s.id == id) {
+            None => kill_server(app, runtime, id),
+            Some(server) if touched.contains(&id) => {
+                let enabled = enabled_proxies_for_server(&snap.proxies, &id);
+                if let Err(e) = relaunch_server(app, runtime, server, &enabled) {
+                    eprintln!("[frpc] relaunch {id} after import failed: {e}");
+                }
+            }
+            Some(_) => {}
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -591,6 +621,54 @@ pub fn shutdown_all(runtime: &Runtime) {
         // frpc.exe 会失败（文件被占用），且残留孤儿进程
         let _ = p.child.wait();
     }
+}
+
+/// 杀掉上次异常退出（崩溃 / 任务管理器强杀）遗留的 frpc 孤儿进程。
+/// 只认命令行里带本应用 frpc-configs 目录的进程，不误伤用户自己跑的 frpc。
+fn kill_orphan_frpc(app: &AppHandle) {
+    use sysinfo::{ProcessRefreshKind, RefreshKind, System, UpdateKind};
+
+    let Ok(dir) = config_dir(app) else { return };
+    let marker = dir.to_string_lossy().to_lowercase();
+    let sys = System::new_with_specifics(
+        RefreshKind::new()
+            .with_processes(ProcessRefreshKind::new().with_cmd(UpdateKind::Always)),
+    );
+    for proc_ in sys.processes().values() {
+        let ours = proc_
+            .cmd()
+            .iter()
+            .any(|a| std::path::Path::new(a).to_string_lossy().to_lowercase().contains(&marker));
+        // kill 成功才 wait：等它真正退出、释放 remotePort，再重新拉起
+        if ours && proc_.kill() {
+            proc_.wait();
+        }
+    }
+}
+
+/// 应用启动时调用：按 store 里的 enabled 状态把 frpc 拉起来。
+/// 之前只持久化了 enabled，却不在启动时起进程，导致界面显示「已启用」但实际没在跑。
+/// 放后台线程，不阻塞窗口创建；前端先 listen 再 refresh，不会丢状态。
+pub fn restore_on_startup(app: AppHandle) {
+    thread::spawn(move || {
+        kill_orphan_frpc(&app);
+        let (Some(store), Some(runtime)) = (app.try_state::<Store>(), app.try_state::<Runtime>())
+        else {
+            return;
+        };
+        let snap = store.snapshot();
+        for server in &snap.servers {
+            let enabled = enabled_proxies_for_server(&snap.proxies, &server.id);
+            if enabled.is_empty() {
+                continue;
+            }
+            if let Err(e) = relaunch_server(&app, &runtime, server, &enabled) {
+                // 失败（如找不到 frpc）时 proxy 仍是 enabled、进程不存在，
+                // 前端会显示「未运行」，用户点停止/启动即可重试。
+                eprintln!("[frpc] restore server {} failed: {e}", server.id);
+            }
+        }
+    });
 }
 
 /// 应用更新/退出前调用：停掉所有 frpc 子进程并等待其真正退出。

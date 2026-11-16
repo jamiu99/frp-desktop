@@ -3,6 +3,9 @@ import { ref } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import { runtimeApi } from "@/api/runtime";
 import type { ProxyRunStatus, ServerRuntime } from "@/types/runtime";
+import type { Proxy } from "@/types/store";
+
+type BadgeVariant = "success" | "warning" | "destructive" | "outline";
 
 const MAX_LOG = 500;
 
@@ -37,6 +40,24 @@ export const useRuntimeStore = defineStore("runtime", () => {
 
   function statusOfServer(id: string): ProxyRunStatus {
     return runtimes.value.get(id)?.status ?? "stopped";
+  }
+
+  /**
+   * proxy 的真实状态：enabled 只是「想要它跑」，是否真在跑看所属 server 的 frpc 进程。
+   * 避免出现「显示已启用、实际没起 frpc」的错觉。
+   */
+  function proxyStatus(p: Proxy): { text: string; variant: BadgeVariant } {
+    if (!p.enabled) return { text: "已停用", variant: "outline" };
+    switch (statusOfServer(p.server_id)) {
+      case "running":
+        return { text: "运行中", variant: "success" };
+      case "starting":
+        return { text: "启动中", variant: "warning" };
+      case "crashed":
+        return { text: "已崩溃", variant: "destructive" };
+      default:
+        return { text: "未运行", variant: "warning" };
+    }
   }
 
   async function refresh() {
@@ -83,6 +104,7 @@ export const useRuntimeStore = defineStore("runtime", () => {
   return {
     runtimes,
     statusOfServer,
+    proxyStatus,
     refresh,
     startListening,
     startProxy,

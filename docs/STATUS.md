@@ -3,7 +3,7 @@
 > 本文档持续维护项目当前状态。每完成一项功能、每做一次重要决策、每修复值得记录的 bug，都在此处更新。
 > 阅读对象：几个月后回来看的自己 / 接手项目的人。重在 **why**，不只是 **what**。
 
-最后更新：2026-05-25
+最后更新：2026-11-15
 
 ---
 
@@ -113,6 +113,13 @@ frp_desktop 是一个跨平台（Windows / macOS / Linux）的桌面应用，定
 ### v0.1.7（2026-06-01）
 
 - frps Dashboard 的 proxy 表格新增「端口 / 域名」列：TCP/UDP 显示远端端口，HTTP/HTTPS 显示自定义域名。从 frps API 的 proxy conf 取，兼容 snake_case / camelCase（适配不同 frp 版本）
+
+### v0.1.8（2026-11-15）
+
+- **单实例**：接入 `tauri-plugin-single-instance`。关窗口只是隐藏到托盘，之前再双击图标会新开一个进程（两套 frpc 抢同一 remotePort）；现在再次打开只唤起已有窗口
+- **启动时恢复运行状态**：之前只持久化了 proxy 的 `enabled`，启动时却不起 frpc，导致界面显示「已启用 / 停止按钮」但实际没在跑。现在启动时按 `enabled` 自动拉起各 server 的 frpc（`frpc::restore_on_startup`），先清掉上次异常退出遗留的、命令行带本应用 `frpc-configs` 目录的孤儿 frpc
+- **proxy 状态徽章看真实进程**：从「已启用/已停用」改为 已停用 / 启动中 / 运行中 / 已崩溃 / 未运行（enabled 但进程不在，如找不到 frpc）
+- **配置导入 / 导出**（设置页，`src-tauri/src/transfer.rs`）：导出全部服务端 + proxy 为带 `format` / `version` 头的 JSON；本机设置不导出。导入支持「合并」（服务端按 name、proxy 按 (服务端, name) 匹配更新，其余新增）和「覆盖」，先 dry-run 预览再执行。新导入的 proxy 一律 `enabled=false`，避免和导出方机器抢 remotePort；导入后只重启被更新的、正在运行的服务端 frpc，被删的停掉。也能直接导入旧的 `store.json`
 
 ## 自动更新维护须知（重要）
 

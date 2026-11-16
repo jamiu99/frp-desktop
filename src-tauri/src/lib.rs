@@ -1,6 +1,7 @@
 mod frpc;
 mod ports;
 mod store;
+mod transfer;
 mod tray;
 
 use frpc::Runtime;
@@ -10,8 +11,18 @@ use tauri_plugin_autostart::MacosLauncher;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    // 单实例：必须最先注册。再次打开应用时不新开进程，而是唤起已有窗口
+    // （否则两个实例会各自起一套 frpc，抢同一个 remotePort）。
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        tray::show_main(app);
+    }));
+
+    builder
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
@@ -29,6 +40,9 @@ pub fn run() {
             app.manage(s);
             app.manage(Runtime::new());
             tray::setup(&app.handle())?;
+            // 恢复上次的运行状态：store 里 enabled=true 的 proxy 自动拉起 frpc，
+            // 保证界面上的「已启用」与真实进程一致。
+            frpc::restore_on_startup(app.handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -58,6 +72,8 @@ pub fn run() {
             frpc::server_logs,
             frpc::check_frpc,
             frpc::stop_all_proxies,
+            transfer::export_config,
+            transfer::import_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

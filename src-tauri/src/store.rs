@@ -153,7 +153,7 @@ fn is_valid_name(s: &str) -> bool {
     regex_lite::Regex::new(NAME_RE).unwrap().is_match(s)
 }
 
-fn validate_proxy_name(name: &str) -> Result<(), String> {
+pub fn validate_proxy_name(name: &str) -> Result<(), String> {
     if name.trim().is_empty() {
         return Err("name 不能为空".into());
     }

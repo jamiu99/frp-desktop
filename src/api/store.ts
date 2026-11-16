@@ -1,6 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  ExportReport,
   FrpsServer,
+  ImportMode,
+  ImportReport,
   Proxy,
   ProxyInput,
   ServerInput,
@@ -27,4 +30,9 @@ export const storeApi = {
 
   updateSettings: (settings: Settings) =>
     invoke<Settings>("update_settings", { settings }),
+
+  exportConfig: (path: string) =>
+    invoke<ExportReport>("export_config", { path }),
+  importConfig: (path: string, mode: ImportMode, dryRun: boolean) =>
+    invoke<ImportReport>("import_config", { path, mode, dryRun }),
 };

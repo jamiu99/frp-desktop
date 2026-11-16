@@ -14,7 +14,10 @@ import { getVersion } from "@tauri-apps/api/app";
 import { useDataStore } from "@/stores/data";
 import { runtimeApi } from "@/api/runtime";
 import { toast } from "@/components/ui/toast";
-import { CheckCircle2, XCircle, RefreshCw } from "@lucide/vue";
+import { CheckCircle2, XCircle, RefreshCw, Download, Upload } from "@lucide/vue";
+import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
+import { storeApi } from "@/api/store";
+import ImportConfigDialog from "@/components/forms/ImportConfigDialog.vue";
 import {
   enable as enableAutostart,
   disable as disableAutostart,
@@ -82,6 +85,37 @@ async function save() {
       console.warn("autostart sync failed:", e);
     }
     toast.success("设置已保存");
+  } catch (e) {
+    toast.fromError(e);
+  }
+}
+
+// 配置导入 / 导出
+const JSON_FILTER = [{ name: "frp_desktop 配置", extensions: ["json"] }];
+async function exportConfig() {
+  try {
+    const d = new Date();
+    const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+    const path = await saveDialog({
+      defaultPath: `frp-desktop-config-${stamp}.json`,
+      filters: JSON_FILTER,
+    });
+    if (!path) return;
+    const r = await storeApi.exportConfig(path);
+    toast.success(`已导出 ${r.servers} 个服务端、${r.proxies} 个 proxy`);
+  } catch (e) {
+    toast.fromError(e);
+  }
+}
+
+const importOpen = ref(false);
+const importPath = ref<string | null>(null);
+async function pickImportFile() {
+  try {
+    const path = await openDialog({ multiple: false, directory: false, filters: JSON_FILTER });
+    if (!path) return;
+    importPath.value = path;
+    importOpen.value = true;
   } catch (e) {
     toast.fromError(e);
   }
@@ -164,6 +198,30 @@ async function checkFrpc() {
 
     <Card>
       <CardHeader>
+        <CardTitle>导入 / 导出配置</CardTitle>
+        <CardDescription>
+          把所有 frps 服务端和 proxy 导出为 JSON，换电脑或备份时再导入。本机设置（frpc 路径、开机自启）不包含在内
+        </CardDescription>
+      </CardHeader>
+      <CardContent class="space-y-3">
+        <div class="flex gap-2">
+          <Button variant="outline" @click="exportConfig">
+            <Download class="h-4 w-4" />
+            导出配置
+          </Button>
+          <Button variant="outline" @click="pickImportFile">
+            <Upload class="h-4 w-4" />
+            导入配置
+          </Button>
+        </div>
+        <p class="text-xs text-muted-foreground">
+          导出文件包含 frps token 和 dashboard 密码明文，请妥善保管，不要随意分享
+        </p>
+      </CardContent>
+    </Card>
+
+    <Card>
+      <CardHeader>
         <CardTitle>关于 / 更新</CardTitle>
         <CardDescription>当前版本 v{{ appVersion || "…" }}</CardDescription>
       </CardHeader>
@@ -179,5 +237,6 @@ async function checkFrpc() {
     </Card>
 
     <UpdateDialog v-model:open="updateDialogOpen" />
+    <ImportConfigDialog v-model:open="importOpen" :path="importPath" />
   </div>
 </template>
