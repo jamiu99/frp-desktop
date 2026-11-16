@@ -120,6 +120,8 @@ frp_desktop 是一个跨平台（Windows / macOS / Linux）的桌面应用，定
 - **启动时恢复运行状态**：之前只持久化了 proxy 的 `enabled`，启动时却不起 frpc，导致界面显示「已启用 / 停止按钮」但实际没在跑。现在启动时按 `enabled` 自动拉起各 server 的 frpc（`frpc::restore_on_startup`），先清掉上次异常退出遗留的、命令行带本应用 `frpc-configs` 目录的孤儿 frpc
 - **proxy 状态徽章看真实进程**：从「已启用/已停用」改为 已停用 / 启动中 / 运行中 / 已崩溃 / 未运行（enabled 但进程不在，如找不到 frpc）
 - **配置导入 / 导出**（设置页，`src-tauri/src/transfer.rs`）：导出全部服务端 + proxy 为带 `format` / `version` 头的 JSON；本机设置不导出。导入支持「合并」（服务端按 name、proxy 按 (服务端, name) 匹配更新，其余新增）和「覆盖」，先 dry-run 预览再执行。新导入的 proxy 一律 `enabled=false`，避免和导出方机器抢 remotePort；导入后只重启被更新的、正在运行的服务端 frpc，被删的停掉。也能直接导入旧的 `store.json`
+- npm `@tauri-apps/plugin-dialog` 锁 `~2.7`，与 Rust crate（2.7.x）对齐：`tauri build` 会校验 npm 包与 crate 的 major.minor 一致，不一致直接失败
+- 本版 GitHub Actions 因账号 billing 锁定（GitHub 工单 #5010440）无法构建，Windows 安装包在 WSL 用 cargo-xwin 交叉编译后手动发布，无 updater 签名（私钥只在 GitHub Secret），旧版不会收到自动更新；解锁后重跑 release workflow 补齐其他平台和 latest.json
 
 ## 自动更新维护须知（重要）
 
