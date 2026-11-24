@@ -21,6 +21,7 @@ export const useDataStore = defineStore("data", () => {
   });
   const loaded = ref(false);
   const loading = ref(false);
+  let latestFetch = 0;
 
   function applyState(s: StoreData) {
     servers.value = s.servers;
@@ -30,11 +31,13 @@ export const useDataStore = defineStore("data", () => {
   }
 
   async function fetchAll() {
+    const fetchId = ++latestFetch;
     loading.value = true;
     try {
-      applyState(await storeApi.getState());
+      const state = await storeApi.getState();
+      if (fetchId === latestFetch) applyState(state);
     } finally {
-      loading.value = false;
+      if (fetchId === latestFetch) loading.value = false;
     }
   }
 

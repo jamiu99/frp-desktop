@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import AppSidebar from "@/components/layout/AppSidebar.vue";
 import AppTopbar from "@/components/layout/AppTopbar.vue";
 import UpdateDialog from "@/components/UpdateDialog.vue";
@@ -14,9 +15,13 @@ const runtime = useRuntimeStore();
 const { checkForUpdate } = useUpdater();
 
 const updateDialogOpen = ref(false);
+let stopListeningToChanges: UnlistenFn | undefined;
 
 onMounted(async () => {
   try {
+    stopListeningToChanges = await listen("store-changed", () => {
+      void data.fetchAll().catch((error) => toast.fromError(error));
+    });
     await data.fetchAll();
     await runtime.startListening();
     await runtime.refresh();
@@ -32,6 +37,8 @@ onMounted(async () => {
     /* 静默忽略 */
   }
 });
+
+onUnmounted(() => stopListeningToChanges?.());
 </script>
 
 <template>

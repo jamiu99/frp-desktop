@@ -9,7 +9,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
 use uuid::Uuid;
@@ -37,6 +37,18 @@ pub enum ProxyType {
     Http,
     Https,
     Stcp,
+}
+
+impl ProxyType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Tcp => "tcp",
+            Self::Udp => "udp",
+            Self::Http => "http",
+            Self::Https => "https",
+            Self::Stcp => "stcp",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,15 +114,17 @@ impl Store {
             .path()
             .app_data_dir()
             .map_err(|e| format!("get app_data_dir: {e}"))?;
-        fs::create_dir_all(&dir).map_err(|e| format!("create dir: {e}"))?;
+        Self::open(&dir)
+    }
+
+    fn open(dir: &Path) -> Result<Self, String> {
+        fs::create_dir_all(dir).map_err(|e| format!("create dir: {e}"))?;
         let path = dir.join("store.json");
 
         let data: StoreData = if path.exists() {
-            let txt = fs::read_to_string(&path)
-                .map_err(|e| format!("read store: {e}"))?;
+            let txt = fs::read_to_string(&path).map_err(|e| format!("read store: {e}"))?;
             // 旧文件中的 proxy 可能含 project_id 字段——serde 默认忽略未知字段
-            serde_json::from_str(&txt)
-                .map_err(|e| format!("parse store: {e}"))?
+            serde_json::from_str(&txt).map_err(|e| format!("parse store: {e}"))?
         } else {
             StoreData::default()
         };
@@ -122,11 +136,12 @@ impl Store {
     }
 
     fn persist(&self, data: &StoreData) -> Result<(), String> {
-        let txt = serde_json::to_string_pretty(data)
-            .map_err(|e| format!("serialize: {e}"))?;
-        let tmp = self.path.with_extension("json.tmp");
-        fs::write(&tmp, txt).map_err(|e| format!("write tmp: {e}"))?;
-        fs::rename(&tmp, &self.path).map_err(|e| format!("rename: {e}"))?;
+        let mut tmp = tempfile::NamedTempFile::new_in(self.path.parent().unwrap())
+            .map_err(|e| format!("create temp store: {e}"))?;
+        serde_json::to_writer_pretty(tmp.as_file_mut(), data)
+            .map_err(|e| format!("write store: {e}"))?;
+        tmp.persist(&self.path)
+            .map_err(|e| format!("save store: {e}"))?;
         Ok(())
     }
 
@@ -134,14 +149,16 @@ impl Store {
         self.data.lock().unwrap().clone()
     }
 
-    pub fn mutate<F>(&self, f: F) -> Result<StoreData, String>
-    where
-        F: FnOnce(&mut StoreData) -> Result<(), String>,
-    {
+    pub fn mutate<T>(
+        &self,
+        f: impl FnOnce(&mut StoreData) -> Result<T, String>,
+    ) -> Result<T, String> {
         let mut guard = self.data.lock().unwrap();
-        f(&mut guard)?;
-        self.persist(&guard)?;
-        Ok(guard.clone())
+        let mut updated = guard.clone();
+        let result = f(&mut updated)?;
+        self.persist(&updated)?;
+        *guard = updated;
+        Ok(result)
     }
 }
 
@@ -172,7 +189,7 @@ pub fn get_state(store: tauri::State<Store>) -> StoreData {
 
 // --- Server ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ServerInput {
     pub name: String,
     pub host: String,
@@ -197,32 +214,30 @@ fn validate_server_input(s: &ServerInput) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn create_server(
-    store: tauri::State<Store>,
-    input: ServerInput,
-) -> Result<FrpsServer, String> {
+pub fn create_server(store: tauri::State<Store>, input: ServerInput) -> Result<FrpsServer, String> {
+    add_server(&store, input)
+}
+
+pub fn add_server(store: &Store, input: ServerInput) -> Result<FrpsServer, String> {
     validate_server_input(&input)?;
-    let snap = store.snapshot();
-    if snap.servers.iter().any(|s| s.name == input.name) {
-        return Err(format!("服务端名称已存在：{}", input.name));
-    }
-    let server = FrpsServer {
-        id: Uuid::new_v4().to_string(),
-        name: input.name,
-        host: input.host,
-        port: input.port,
-        token: input.token,
-        dashboard_url: input.dashboard_url,
-        dashboard_user: input.dashboard_user,
-        dashboard_pass: input.dashboard_pass,
-        created_at: Utc::now(),
-    };
-    let result = server.clone();
     store.mutate(|d| {
-        d.servers.push(server);
-        Ok(())
-    })?;
-    Ok(result)
+        if d.servers.iter().any(|s| s.name == input.name) {
+            return Err(format!("服务端名称已存在：{}", input.name));
+        }
+        let server = FrpsServer {
+            id: Uuid::new_v4().to_string(),
+            name: input.name,
+            host: input.host,
+            port: input.port,
+            token: input.token,
+            dashboard_url: input.dashboard_url,
+            dashboard_user: input.dashboard_user,
+            dashboard_pass: input.dashboard_pass,
+            created_at: Utc::now(),
+        };
+        d.servers.push(server.clone());
+        Ok(server)
+    })
 }
 
 #[tauri::command]
@@ -259,10 +274,7 @@ pub fn update_server(
 }
 
 #[tauri::command]
-pub fn delete_server(
-    store: tauri::State<Store>,
-    id: String,
-) -> Result<(), String> {
+pub fn delete_server(store: tauri::State<Store>, id: String) -> Result<(), String> {
     store.mutate(|d| {
         d.proxies.retain(|p| p.server_id != id);
         d.servers.retain(|s| s.id != id);
@@ -273,7 +285,7 @@ pub fn delete_server(
 
 // --- Proxy ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ProxyInput {
     pub server_id: String,
     pub name: String,
@@ -300,12 +312,14 @@ fn validate_proxy_input(input: &ProxyInput, data: &StoreData) -> Result<(), Stri
     }
     match input.proxy_type {
         ProxyType::Tcp | ProxyType::Udp => {
-            if input.remote_port.is_none() {
+            if !input.remote_port.is_some_and(|port| port > 0) {
                 return Err("TCP/UDP 类型必须指定远端端口".into());
             }
         }
         ProxyType::Http | ProxyType::Https => {
-            if input.custom_domains.is_empty() {
+            if input.custom_domains.is_empty()
+                || input.custom_domains.iter().any(|d| d.trim().is_empty())
+            {
                 return Err("HTTP/HTTPS 类型必须指定 custom domains".into());
             }
         }
@@ -315,40 +329,45 @@ fn validate_proxy_input(input: &ProxyInput, data: &StoreData) -> Result<(), Stri
 }
 
 #[tauri::command]
-pub fn create_proxy(
-    store: tauri::State<Store>,
-    input: ProxyInput,
-) -> Result<Proxy, String> {
-    let snap = store.snapshot();
-    validate_proxy_input(&input, &snap)?;
+pub fn create_proxy(store: tauri::State<Store>, input: ProxyInput) -> Result<Proxy, String> {
+    add_proxy(&store, input)
+}
 
-    if snap
+pub fn validate_new_proxy(input: &ProxyInput, data: &StoreData) -> Result<(), String> {
+    validate_proxy_input(input, data)?;
+    if data
         .proxies
         .iter()
         .any(|p| p.server_id == input.server_id && p.name == input.name)
     {
-        return Err(format!("同一 frps 服务端下已存在同名 proxy：{}", input.name));
+        return Err(format!(
+            "同一 frps 服务端下已存在同名 proxy：{}",
+            input.name
+        ));
     }
 
-    let proxy = Proxy {
-        id: Uuid::new_v4().to_string(),
-        server_id: input.server_id,
-        name: input.name,
-        description: input.description,
-        proxy_type: input.proxy_type,
-        local_ip: input.local_ip,
-        local_port: input.local_port,
-        remote_port: input.remote_port,
-        custom_domains: input.custom_domains,
-        enabled: false,
-        created_at: Utc::now(),
-    };
-    let result = proxy.clone();
+    Ok(())
+}
+
+pub fn add_proxy(store: &Store, input: ProxyInput) -> Result<Proxy, String> {
     store.mutate(|d| {
-        d.proxies.push(proxy);
-        Ok(())
-    })?;
-    Ok(result)
+        validate_new_proxy(&input, d)?;
+        let proxy = Proxy {
+            id: Uuid::new_v4().to_string(),
+            server_id: input.server_id,
+            name: input.name,
+            description: input.description,
+            proxy_type: input.proxy_type,
+            local_ip: input.local_ip,
+            local_port: input.local_port,
+            remote_port: input.remote_port,
+            custom_domains: input.custom_domains,
+            enabled: false,
+            created_at: Utc::now(),
+        };
+        d.proxies.push(proxy.clone());
+        Ok(proxy)
+    })
 }
 
 #[tauri::command]
@@ -365,7 +384,10 @@ pub fn update_proxy(
             .iter()
             .any(|p| p.id != id && p.server_id == input.server_id && p.name == input.name)
         {
-            return Err(format!("同一 frps 服务端下已存在同名 proxy：{}", input.name));
+            return Err(format!(
+                "同一 frps 服务端下已存在同名 proxy：{}",
+                input.name
+            ));
         }
         let p = d
             .proxies
@@ -391,10 +413,7 @@ pub fn update_proxy(
 }
 
 #[tauri::command]
-pub fn delete_proxy(
-    store: tauri::State<Store>,
-    id: String,
-) -> Result<(), String> {
+pub fn delete_proxy(store: tauri::State<Store>, id: String) -> Result<(), String> {
     store.mutate(|d| {
         d.proxies.retain(|p| p.id != id);
         Ok(())
@@ -428,13 +447,68 @@ pub fn set_proxy_enabled(
 // --- Settings ---
 
 #[tauri::command]
-pub fn update_settings(
-    store: tauri::State<Store>,
-    settings: Settings,
-) -> Result<Settings, String> {
+pub fn update_settings(store: tauri::State<Store>, settings: Settings) -> Result<Settings, String> {
     store.mutate(|d| {
         d.settings = settings.clone();
         Ok(())
     })?;
     Ok(store.snapshot().settings)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn proxy_preview_and_create_share_validation_and_keep_it_disabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path()).unwrap();
+        let server = add_server(
+            &store,
+            ServerInput {
+                name: "fixture".into(),
+                host: "example.invalid".into(),
+                port: 7000,
+                token: String::new(),
+                dashboard_url: None,
+                dashboard_user: None,
+                dashboard_pass: None,
+            },
+        )
+        .unwrap();
+        let input = |port| ProxyInput {
+            server_id: server.id.clone(),
+            name: "web".into(),
+            description: String::new(),
+            proxy_type: ProxyType::Tcp,
+            local_ip: "127.0.0.1".into(),
+            local_port: 8080,
+            remote_port: Some(port),
+            custom_domains: Vec::new(),
+        };
+        assert!(validate_new_proxy(&input(0), &store.snapshot()).is_err());
+        validate_new_proxy(&input(18080), &store.snapshot()).unwrap();
+        assert!(store.snapshot().proxies.is_empty());
+        let proxy = add_proxy(&store, input(18080)).unwrap();
+        assert!(!proxy.enabled);
+        assert!(add_proxy(&store, input(18080)).is_err());
+        let reloaded = Store::open(dir.path()).unwrap().snapshot();
+        assert_eq!(reloaded.proxies.len(), 1);
+        assert_eq!(reloaded.proxies[0].id, proxy.id);
+        assert!(!reloaded.proxies[0].enabled);
+    }
+
+    #[test]
+    fn a_failed_write_keeps_the_last_saved_state() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path()).unwrap();
+        fs::create_dir(&store.path).unwrap();
+        assert!(store
+            .mutate(|state| {
+                state.settings.autostart = true;
+                Ok(())
+            })
+            .is_err());
+        assert!(!store.snapshot().settings.autostart);
+    }
 }

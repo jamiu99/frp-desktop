@@ -1,3 +1,5 @@
+mod automation;
+mod dashboard;
 mod frpc;
 mod ports;
 mod store;
@@ -8,6 +10,10 @@ use frpc::Runtime;
 use store::Store;
 use tauri::Manager;
 use tauri_plugin_autostart::MacosLauncher;
+
+pub use automation::run_cli;
+
+struct AutomationTask(tauri::async_runtime::JoinHandle<()>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -23,7 +29,6 @@ pub fn run() {
     builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             None,
@@ -35,14 +40,15 @@ pub fn run() {
                     .plugin(tauri_plugin_updater::Builder::new().build())?;
                 app.handle().plugin(tauri_plugin_process::init())?;
             }
-            let s = Store::load(&app.handle())
-                .expect("failed to load store");
+            let s = Store::load(&app.handle()).expect("failed to load store");
             app.manage(s);
             app.manage(Runtime::new());
+            app.manage(dashboard::DashboardClient::new()?);
             tray::setup(&app.handle())?;
             // 恢复上次的运行状态：store 里 enabled=true 的 proxy 自动拉起 frpc，
             // 保证界面上的「已启用」与真实进程一致。
             frpc::restore_on_startup(app.handle().clone());
+            app.manage(AutomationTask(automation::start(app.handle().clone())));
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -64,6 +70,7 @@ pub fn run() {
             store::delete_proxy,
             store::set_proxy_enabled,
             store::update_settings,
+            dashboard::dashboard_overview,
             frpc::list_runtime,
             frpc::start_proxy,
             frpc::stop_proxy,
@@ -75,6 +82,11 @@ pub fn run() {
             transfer::export_config,
             transfer::import_config,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                app.state::<AutomationTask>().0.abort();
+            }
+        });
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import {
   Card,
@@ -30,46 +30,52 @@ const serverId = computed(() => route.params.serverId as string);
 const server = computed(() => data.servers.find((s) => s.id === serverId.value));
 
 const info = ref<FrpsServerInfo | null>(null);
-const proxies = ref<(FrpsProxyInfo & { type: string })[]>([]);
+const proxies = ref<FrpsProxyInfo[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
+const failedTypes = ref<string[]>([]);
 const filter = ref("");
+let latestRefresh = 0;
 
 type SortKey = "name" | "type" | "status" | "cur_conns" | "today_traffic_in" | "today_traffic_out";
 const sortKey = ref<SortKey>("name");
 const sortDir = ref<"asc" | "desc">("asc");
 
 async function refresh() {
-  if (!server.value) return;
-  loading.value = true;
+  const refreshId = ++latestRefresh;
+  const selected = server.value;
   error.value = null;
+  failedTypes.value = [];
+  info.value = null;
+  proxies.value = [];
+  loading.value = !!selected?.dashboard_url;
+  if (!selected?.dashboard_url) return;
+
   try {
-    const [si, ps] = await Promise.all([
-      frpsApi.serverInfo(server.value),
-      frpsApi.allProxies(server.value),
-    ]);
-    info.value = si;
-    proxies.value = ps;
+    const result = await frpsApi.overview(selected.id);
+    if (refreshId !== latestRefresh) return;
+    info.value = result.server_info;
+    proxies.value = result.proxies;
+    error.value = result.server_info_error;
+    failedTypes.value = Object.keys(result.failed_types);
   } catch (e) {
+    if (refreshId !== latestRefresh) return;
     error.value = String((e as Error)?.message ?? e);
     toast.fromError(e);
   } finally {
-    loading.value = false;
+    if (refreshId === latestRefresh) loading.value = false;
   }
 }
 
-onMounted(() => {
-  if (data.loaded) refresh();
-});
-watch(
-  () => [data.loaded, server.value?.id],
-  () => {
-    if (data.loaded && server.value) refresh();
-  },
-  { immediate: true },
-);
+watch([
+  () => server.value?.id,
+  () => server.value?.dashboard_url,
+  () => server.value?.dashboard_user,
+  () => server.value?.dashboard_pass,
+], refresh, { immediate: true });
 
-function formatBytes(n: number) {
+function formatBytes(n: number | null) {
+  if (n === null) return "—";
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
@@ -121,14 +127,10 @@ const cols: { key: SortKey; label: string }[] = [
   { key: "today_traffic_out", label: "今日出站" },
 ];
 
-/** 从 proxy 的 conf 里取"端口/域名"展示文本，兼容 snake_case / camelCase */
 function portText(p: FrpsProxyInfo): string {
-  const conf = (p.conf ?? {}) as Record<string, unknown>;
-  const remotePort = conf.remote_port ?? conf.remotePort;
+  const remotePort = p.conf?.remote_port;
   if (remotePort) return `:${remotePort}`;
-  const domains = (conf.custom_domains ?? conf.customDomains) as
-    | string[]
-    | undefined;
+  const domains = p.conf?.custom_domains;
   if (domains && domains.length) return domains.join(", ");
   return "-";
 }
@@ -174,13 +176,13 @@ function portText(p: FrpsProxyInfo): string {
       <Card>
         <CardHeader class="pb-2">
           <CardDescription>客户端数</CardDescription>
-          <CardTitle class="text-base">{{ info.client_counts }}</CardTitle>
+          <CardTitle class="text-base">{{ info.client_counts ?? "—" }}</CardTitle>
         </CardHeader>
       </Card>
       <Card>
         <CardHeader class="pb-2">
           <CardDescription>当前连接</CardDescription>
-          <CardTitle class="text-base">{{ info.cur_conns }}</CardTitle>
+          <CardTitle class="text-base">{{ info.cur_conns ?? "—" }}</CardTitle>
         </CardHeader>
       </Card>
       <Card>
@@ -201,6 +203,9 @@ function portText(p: FrpsProxyInfo): string {
           <CardTitle class="text-base">Proxy（{{ filteredSorted.length }} / {{ proxies.length }}）</CardTitle>
           <CardDescription class="text-xs">点击列头排序</CardDescription>
         </div>
+        <p v-if="failedTypes.length" class="text-sm text-muted-foreground">
+          部分代理类型暂时无法读取（{{ failedTypes.join("、") }}）
+        </p>
         <Input v-model="filter" placeholder="过滤 name / 类型 / 状态" class="max-w-md" />
       </CardHeader>
       <CardContent class="p-0">
@@ -227,7 +232,7 @@ function portText(p: FrpsProxyInfo): string {
             <tbody>
               <tr v-if="!loading && filteredSorted.length === 0" class="border-b">
                 <td colspan="7" class="p-8 text-center text-muted-foreground">
-                  {{ filter ? "没有匹配" : "服务端没有 proxy" }}
+                  {{ filter ? "没有匹配" : error || failedTypes.length ? "暂未查到代理" : "服务端没有 proxy" }}
                 </td>
               </tr>
               <tr
@@ -244,7 +249,7 @@ function portText(p: FrpsProxyInfo): string {
                     :variant="p.status === 'online' ? 'success' : 'outline'"
                   >{{ p.status }}</Badge>
                 </td>
-                <td class="px-4 py-2 tabular-nums">{{ p.cur_conns }}</td>
+                <td class="px-4 py-2 tabular-nums">{{ p.cur_conns ?? "—" }}</td>
                 <td class="px-4 py-2 tabular-nums font-mono text-xs">
                   {{ formatBytes(p.today_traffic_in) }}
                 </td>

@@ -3,7 +3,7 @@
 > 本文档持续维护项目当前状态。每完成一项功能、每做一次重要决策、每修复值得记录的 bug，都在此处更新。
 > 阅读对象：几个月后回来看的自己 / 接手项目的人。重在 **why**，不只是 **what**。
 
-最后更新：2026-11-15
+最后更新：2026-11-24
 
 ---
 
@@ -122,6 +122,11 @@ frp_desktop 是一个跨平台（Windows / macOS / Linux）的桌面应用，定
 - **配置导入 / 导出**（设置页，`src-tauri/src/transfer.rs`）：导出全部服务端 + proxy 为带 `format` / `version` 头的 JSON；本机设置不导出。导入支持「合并」（服务端按 name、proxy 按 (服务端, name) 匹配更新，其余新增）和「覆盖」，先 dry-run 预览再执行。新导入的 proxy 一律 `enabled=false`，避免和导出方机器抢 remotePort；导入后只重启被更新的、正在运行的服务端 frpc，被删的停掉。也能直接导入旧的 `store.json`
 - npm `@tauri-apps/plugin-dialog` 锁 `~2.7`，与 Rust crate（2.7.x）对齐：`tauri build` 会校验 npm 包与 crate 的 major.minor 一致，不一致直接失败
 - 本版 GitHub Actions 因账号 billing 锁定（GitHub 工单 #5010440）无法构建，Windows 安装包在 WSL 用 cargo-xwin 交叉编译后手动发布，无 updater 签名（私钥只在 GitHub Secret），旧版不会收到自动更新；解锁后重跑 release workflow 补齐其他平台和 latest.json
+
+### v0.1.9（2026-11-24）
+
+- 新增本机 CLI 和 [Codex skill](../skills/frp-desktop/SKILL.md)。CLI 与桌面界面共用配置、运行状态和 Dashboard 查询逻辑。
+- 新 proxy 默认停用，启停支持预览同组影响。最近退出的进程日志保留到桌面进程结束或下一次运行替换。
 
 ## 自动更新维护须知（重要）
 

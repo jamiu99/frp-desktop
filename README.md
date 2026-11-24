@@ -112,6 +112,22 @@ sudo apt install -y \
 - 下载的安装包用 minisign 公钥验签后才安装，安全可靠
 - 支持 Windows（.msi/.exe）、macOS（.app）、Linux（AppImage）；`.deb` / `.rpm` 走系统包管理器，不走应用内更新
 
+## CLI 与 AI Skill
+
+启动支持 CLI 的桌面版后，从同一版本的安装目录运行 `frp-desktop-cli`（Windows 下为 `frp-desktop-cli.exe`）。在 macOS 上，CLI 位于应用包的 `Contents/MacOS/`。源码构建后，可在 `src-tauri/target/release/` 下找到 CLI，指定 `--target` 时路径包含目标平台目录。CLI 通过本机套接字或 Windows 命名管道使用桌面版的配置和运行状态。
+
+```bash
+frp-desktop-cli server list
+frp-desktop-cli server status home
+frp-desktop-cli logs home --lines 50
+frp-desktop-cli proxy create --server home --name web --type tcp --local-port 8080 --remote-port 18080 --dry-run
+frp-desktop-cli proxy status --server home web
+```
+
+所有操作结果以 JSON 输出。去掉创建命令的 `--dry-run` 会保存停用的 proxy。`proxy start` 和 `proxy stop` 也支持 `--dry-run`，可预览同一 frps 下可能短暂断开的其他代理。`server add` 可用 `--credentials-stdin` 接收本地提供的凭证 JSON，也可在桌面应用里录入凭证。用 `--help` 查看所有参数。
+
+将 [frp-desktop skill](skills/frp-desktop/SKILL.md) 所在目录装入 Codex 的 skill 目录后，可用 `$frp-desktop` 调用。如果桌面版运行在 Windows，WSL 中直接执行安装目录下的 Windows CLI，例如 `"/mnt/c/…/frp-desktop-cli.exe" server list`。本地代理地址以桌面版所在系统为准。
+
 ## 进程模型
 
 - 每个 frps 服务端 = 一个 frpc 子进程
@@ -126,7 +142,7 @@ sudo apt install -y \
 - **前端**：Vue 3 + TypeScript + Tailwind v3 + shadcn-vue 风格组件
 - **本地存储**：单 JSON 文件，路径 `app_data_dir/store.json`，原子写入
 - **frpc 集成**：调用官方 frpc 二进制（sidecar 模式，随包分发，锁定 v0.69.0）。每个 frps 服务端一个 frpc 子进程，承载该 server 下所有启用 proxy
-- **frps 接入**：调用 frps Admin HTTP API（`/api/serverinfo`、`/api/proxy/{type}`）
+- **frps 接入**：桌面的 Rust 后端统一调用 frps Admin HTTP API，供界面和 CLI 使用
 
 详细架构决策见 [docs/STATUS.md](docs/STATUS.md)。
 
@@ -136,7 +152,7 @@ sudo apt install -y \
 | --- | --- |
 | Windows | `%APPDATA%\com.github.jamiu99.frp-desktop\` |
 | macOS | `~/Library/Application Support/com.github.jamiu99.frp-desktop/` |
-| Linux | `~/.config/com.github.jamiu99.frp-desktop/` |
+| Linux | `$XDG_DATA_HOME/com.github.jamiu99.frp-desktop/`（默认 `~/.local/share/com.github.jamiu99.frp-desktop/`） |
 
 ⚠️ **注意**：当前版本 frps token 和 dashboard 密码以**明文**存在 `store.json`。文件权限依赖操作系统的用户目录隔离。如有更高安全要求，请勿在多用户环境下使用。
 
